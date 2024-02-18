@@ -1,0 +1,11 @@
+version: '3'
+services:
+  music_tous_la:
+    build: .
+    volumes:
+      - .:/app
+    environment:
+      - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+    ports:
+      - "80:80"
