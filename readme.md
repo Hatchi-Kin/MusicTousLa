@@ -19,7 +19,9 @@ Les commandes disponibles sont:
 - `help`: Pour afficher la liste des commandes
 
 
-## manifest.yaml
+## https://api.slack.com/
+
+créer une app avec ce manifest et l'installer dans le workspace: 
 
 ```yaml
 display_information:
@@ -49,14 +51,16 @@ settings:
   org_deploy_enabled: false
   socket_mode_enabled: true
   token_rotation_enabled: false
-
 ```
+puis ajouter au .env
+- SLACK_APP_TOKEN=xapp- xxxxx xxxxx
+- SLACK_BOT_TOKEN=xoxb- xxxxx xxxxx
 
 ## Docker
 
 Pour faire tourner le bot dans un conteneur:
 
-   ```
+   ```bash
    docker compose up -d
    ```
 
