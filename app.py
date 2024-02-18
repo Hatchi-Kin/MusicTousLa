@@ -348,7 +348,7 @@ def show_last_songs(message, say):
         [f"{i+1}. {song[0]}, <@{song[1]}>" for i, song in enumerate(last_songs)]
     )
     say(
-        text=f"hey <@{user_id}>, vois les 3 derniers morceaux choisi:\n{songs_text}",
+        text=f"hey <@{user_id}>, vois les 5 derniers morceaux choisi:\n{songs_text}",
         channel=dm_channel,
     )
 
