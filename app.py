@@ -255,7 +255,7 @@ def show_current_dj(message, say):
         return
 
     say(
-        text=f"hey <@{user_id}>, le DJ de cette semaine est <{current_dj[0]}>",
+        text=f"hey <@{user_id}>, le DJ de cette semaine est <@{current_dj[0]}>",
         channel=dm_channel,
     )
 
@@ -278,7 +278,7 @@ def save_song_link(message, say):
     # Check if the user is the current DJ
     current_dj = db.fetchone("SELECT user_id FROM currentdj ORDER BY id DESC LIMIT 1")
     if message["user"] != current_dj[0]:
-        warning = f"En fait,  <@{message['user']}>, tu n'es pas le DJ de la semaine. Normalement, c'est à <@{current_dj[0]}> de choisir le morceau de la semaine."
+        warning = f"\nAu fait,  <@{message['user']}>, tu n'es pas le DJ de la semaine. Normalement, c'est à <@{current_dj[0]}> de choisir le morceau de la semaine."
     else:
         warning = ""
 
@@ -333,9 +333,19 @@ def show_last_songs(message, say):
     user_id = message["user"]
 
     db = DatabaseManager()
-    last_songs = db.fetchall(
-        "SELECT link, user_id FROM songs ORDER BY id DESC LIMIT 5",
+    all_songs = db.fetchall(
+        "SELECT link, user_id FROM songs ORDER BY id DESC",
     )
+
+    # Filter out duplicates
+    seen_links = set()
+    last_songs = []
+    for song in all_songs:
+        if song[0] not in seen_links:
+            seen_links.add(song[0])
+            last_songs.append(song)
+        if len(last_songs) == 5:
+            break
 
     if not last_songs:
         say(
