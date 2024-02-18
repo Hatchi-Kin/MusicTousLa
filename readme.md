@@ -11,11 +11,11 @@ Les commandes disponibles sont:
 - `addme`: Pour s'ajouter à la liste des participants
 - `removeme`: Pour se retirer de la liste des participants
 - `randomdj`: Choisit au hasard le prochain DJ
-- `isdj`: permet de voir qui est le DJ de la semaine
-- `nextsong/<song_link>`: permet d'enregistrer l'URL du morceau choisit (ex, un lien youtube)
-- `song`: permet de voir le morceau choisi par le DJ de la semaine
-- `last`: permet de voir les 5 derniers morceaux choisis par les précedents DJs
-- `participants`: permet de voir la liste des participants
+- `isdj`: Permet de voir qui est le DJ de la semaine
+- `nextsong/<song_link>`: Permet d'enregistrer l'URL du morceau choisit (ex, un lien youtube)
+- `song`: Permet de voir le morceau choisi par le DJ de la semaine
+- `last`: Permet de voir les 5 derniers morceaux choisis par les précedents DJs
+- `participants`: Permet de voir la liste des participants
 - `help`: Pour afficher la liste des commandes
 
 
