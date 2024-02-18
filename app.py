@@ -52,7 +52,8 @@ def create_tables(DB_NAME):
             )
 
     except sqlite3.Error as e:
-        print(f"An error occurred: {e}")
+        logging.error(f"An error occurred in create_tables: {e}")
+
 
 
 def insert_first_song(DB_NAME):
@@ -68,24 +69,25 @@ def insert_first_song(DB_NAME):
                     ("<https://www.youtube.com/watch?v=9fygHXi85T4>", "U06KDAJF1KL"),
                 )
     except sqlite3.Error as e:
-        print(f"An error occurred: {e}")
+        logging.error(f"An error occurred in insert_first_song: {e}")
 
 
 class DatabaseManager:
     def __init__(self):
         self.db_name = DB_NAME
+        self.conn = sqlite3.connect(self.db_name)
 
     def execute(self, query, params=()):
-        with sqlite3.connect(self.db_name) as conn:
-            conn.execute(query, params)
+        with self.conn:
+            self.conn.execute(query, params)
 
     def fetchone(self, query, params=()):
-        with sqlite3.connect(self.db_name) as conn:
-            return conn.execute(query, params).fetchone()
+        with self.conn:
+            return self.conn.execute(query, params).fetchone()
 
     def fetchall(self, query, params=()):
-        with sqlite3.connect(self.db_name) as conn:
-            return conn.execute(query, params).fetchall()
+        with self.conn:
+            return self.conn.execute(query, params).fetchall()
 
 
 def is_not_direct_message(message):
@@ -132,7 +134,7 @@ def show_help(message, say):
 
 
 @app.message(re.compile(r"^addme$"))
-def remove_participant(message, say):
+def add_participant(message, say):
     if is_not_direct_message(message):
         return
 
