@@ -40,7 +40,6 @@ def create_tables(DB_NAME):
         logging.error(f"An error occurred in create_tables: {e}")
 
 
-
 def insert_first_song(DB_NAME):
     try:
         with sqlite3.connect(DB_NAME) as conn:
@@ -73,9 +72,3 @@ class DatabaseManager:
     def fetchall(self, query, params=()):
         with self.conn:
             return self.conn.execute(query, params).fetchall()
-
-
-def is_not_direct_message(message):
-    return message["channel_type"] != "im"
-
-
