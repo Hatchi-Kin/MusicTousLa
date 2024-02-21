@@ -38,7 +38,7 @@ jobs:
           host: ${{ secrets.HOST_DNS }}
           username: ${{ secrets.USERNAME }}
           script: |
-            cd /home/admin/fevrier
+            cd /home/admin/MusicToUsLa
             git pull
             if docker ps | grep -q 'musictousla_music_tous_la_1'; then
               docker-compose restart
