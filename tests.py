@@ -1,8 +1,7 @@
 import os
 import sqlite3
 import unittest
-from dotenv import load_dotenv
-from app import create_tables, insert_first_song
+from bot.models import create_tables, insert_first_song
 
 # python3 -m unittest tests.py
 
