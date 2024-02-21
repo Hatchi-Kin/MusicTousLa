@@ -9,7 +9,6 @@ from app import create_tables, insert_first_song
 class TestDatabaseFunctions(unittest.TestCase):
     def setUp(self):
         self.test_db = "test.db"
-        load_dotenv()
 
     def tearDown(self):
         os.remove(self.test_db)

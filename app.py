@@ -4,6 +4,9 @@ import re
 import sqlite3
 import random
 
+from bot.models import create_tables, insert_first_song, DatabaseManager, is_not_direct_message
+
+
 from dotenv import load_dotenv
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
@@ -15,83 +18,6 @@ SLACK_APP_TOKEN = os.environ["SLACK_APP_TOKEN"]
 SLACK_BOT_TOKEN = os.environ["SLACK_BOT_TOKEN"]
 
 DB_NAME = "db/music_tous_la.db"
-
-
-def create_tables(DB_NAME):
-    try:
-        with sqlite3.connect(DB_NAME) as conn:
-            c = conn.cursor()
-
-            c.execute(
-                """
-                CREATE TABLE IF NOT EXISTS songs(
-                    id INTEGER PRIMARY KEY,
-                    link TEXT NOT NULL,
-                    user_id TEXT NOT NULL
-                )
-                """
-            )
-
-            c.execute(
-                """
-                CREATE TABLE IF NOT EXISTS participants(
-                    id INTEGER PRIMARY KEY,
-                    user_id TEXT NOT NULL,
-                    username TEXT NOT NULL
-                )
-                """
-            )
-
-            c.execute(
-                """
-                CREATE TABLE IF NOT EXISTS currentdj(
-                    id INTEGER PRIMARY KEY,
-                    user_id TEXT NOT NULL
-                )
-                """
-            )
-
-    except sqlite3.Error as e:
-        logging.error(f"An error occurred in create_tables: {e}")
-
-
-
-def insert_first_song(DB_NAME):
-    try:
-        with sqlite3.connect(DB_NAME) as conn:
-            c = conn.cursor()
-            c.execute("SELECT * FROM songs")
-            if not c.fetchone():
-                c.execute(
-                    """
-                    INSERT INTO songs (link, user_id) VALUES (?, ?)
-                    """,
-                    ("<https://www.youtube.com/watch?v=9fygHXi85T4>", "U06KDAJF1KL"),
-                )
-    except sqlite3.Error as e:
-        logging.error(f"An error occurred in insert_first_song: {e}")
-
-
-class DatabaseManager:
-    def __init__(self):
-        self.db_name = DB_NAME
-        self.conn = sqlite3.connect(self.db_name)
-
-    def execute(self, query, params=()):
-        with self.conn:
-            self.conn.execute(query, params)
-
-    def fetchone(self, query, params=()):
-        with self.conn:
-            return self.conn.execute(query, params).fetchone()
-
-    def fetchall(self, query, params=()):
-        with self.conn:
-            return self.conn.execute(query, params).fetchall()
-
-
-def is_not_direct_message(message):
-    return message["channel_type"] != "im"
 
 
 def get_username(user_id):
@@ -142,7 +68,7 @@ def add_participant(message, say):
     user_id = message["user"]
     username = get_username(user_id)
 
-    db = DatabaseManager()
+    db = DatabaseManager(DB_NAME)
     existing_user = db.fetchone(
         "SELECT user_id FROM participants WHERE user_id = ?", (user_id,)
     )
@@ -172,7 +98,7 @@ def remove_participant(message, say):
     dm_channel = message["channel"]
     user_id = message["user"]
 
-    db = DatabaseManager()
+    db = DatabaseManager(DB_NAME)
     existing_user = db.fetchone(
         "SELECT user_id FROM participants WHERE user_id = ?", (user_id,)
     )
@@ -198,7 +124,7 @@ def random_dj(message, say):
     dm_channel = message["channel"]
     user_id = message["user"]
 
-    db = DatabaseManager()
+    db = DatabaseManager(DB_NAME)
 
     all_participants = db.fetchall("SELECT user_id, username FROM participants")
     recent_djs = db.fetchall(
@@ -244,7 +170,7 @@ def show_current_dj(message, say):
     dm_channel = message["channel"]
     user_id = message["user"]
 
-    db = DatabaseManager()
+    db = DatabaseManager(DB_NAME)
     current_dj = db.fetchone("SELECT user_id FROM currentdj ORDER BY id DESC LIMIT 1")
 
     if not current_dj:
@@ -273,7 +199,7 @@ def save_song_link(message, say):
         )
         return
 
-    db = DatabaseManager()
+    db = DatabaseManager(DB_NAME)
 
     # Check if the user is the current DJ
     current_dj = db.fetchone("SELECT user_id FROM currentdj ORDER BY id DESC LIMIT 1")
@@ -308,7 +234,7 @@ def show_song(message, say):
     dm_channel = message["channel"]
     user_id = message["user"]
 
-    db = DatabaseManager()
+    db = DatabaseManager(DB_NAME)
     last_song = db.fetchone("SELECT link, user_id FROM songs ORDER BY id DESC LIMIT 1")
 
     if not last_song:
@@ -332,7 +258,7 @@ def show_last_songs(message, say):
     dm_channel = message["channel"]
     user_id = message["user"]
 
-    db = DatabaseManager()
+    db = DatabaseManager(DB_NAME)
     all_songs = db.fetchall(
         "SELECT link, user_id FROM songs ORDER BY id DESC",
     )
@@ -371,7 +297,7 @@ def show_participants(message, say):
     dm_channel = message["channel"]
     user_id = message["user"]
 
-    db = DatabaseManager()
+    db = DatabaseManager(DB_NAME)
     participants = db.fetchall("SELECT username FROM participants")
     count = db.fetchone("SELECT COUNT(*) FROM participants")[0]
 
