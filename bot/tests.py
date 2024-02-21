@@ -14,7 +14,7 @@ from bot.utils import (
     save_song,
 )
 
-# python3 -m unittest tests.py
+# python3 -m unittest bot/tests.py
 
 
 class TestDatabaseFunctions(unittest.TestCase):
