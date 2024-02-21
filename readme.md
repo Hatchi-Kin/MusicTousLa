@@ -2,7 +2,6 @@
 
 MusicTousLa est un bot Slack qui permet de selectionner au hasard la personne qui pourra proposer un morceau de musique à la fin de la prochaine réunion 'Tous là'.
 
-
 ## Utilisation
 
 Pour intéragir avec le bot, il faut lui envoyer des commandes par mp.
@@ -16,8 +15,9 @@ Les commandes disponibles sont:
 - `song`: Permet de voir le morceau choisi par le DJ de la semaine
 - `last`: Permet de voir les 5 derniers morceaux choisis par les précedents DJs
 - `participants`: Permet de voir la liste des participants
+- `forceadd/<user_id>`: Permet d'ajouter quelqu'un d'autre à la liste des participants
+- `forceremove/<user_id>`: permet de retirer quelqu'un d'autre de la liste des participants
 - `help`: Pour afficher la liste des commandes
-
 
 ## https://api.slack.com/
 

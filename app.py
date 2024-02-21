@@ -4,8 +4,22 @@ import re
 import sqlite3
 import random
 
-from bot.models import create_tables, insert_first_song, DatabaseManager, is_not_direct_message
-
+from bot.models import create_tables, insert_first_song
+from bot.utils import (
+    is_not_direct_message,
+    get_participant,
+    add_participant_to_db,
+    remove_participant_from_db,
+    get_all_participants,
+    get_recent_djs,
+    set_current_dj,
+    get_current_dj,
+    save_song,
+    get_last_song,
+    get_all_songs,
+    get_participants_usernames,
+    get_all_participants_count,
+)
 
 from dotenv import load_dotenv
 from slack_bolt import App
@@ -19,14 +33,12 @@ SLACK_BOT_TOKEN = os.environ["SLACK_BOT_TOKEN"]
 
 DB_NAME = "db/music_tous_la.db"
 
-
-def get_username(user_id):
+def get_username_from_id(user_id):
     response = app.client.users_info(user=user_id)
     if response["ok"]:
         return response["user"]["name"]
     else:
         return None
-
 
 app = App(token=SLACK_BOT_TOKEN, name="MusicTousLa")
 logger = logging.getLogger(__name__)
@@ -53,6 +65,8 @@ def show_help(message, say):
     - `song`: permet de voir le morceau choisi par le DJ de la semaine\n
     - `last`: permet de voir les 3 derniers morceaux choisis par les précedents DJs\n
     - `participants`: permet de voir la liste des participants\n
+    - `forceadd/<user_id>`: permet d'ajouter un participant à la liste des participants\n
+    - `forceremove/<user_id>`: permet de retirer un participant de la liste des participants\n
     - `help`: Pour afficher ce message\n
     """
 
@@ -66,12 +80,8 @@ def add_participant(message, say):
 
     dm_channel = message["channel"]
     user_id = message["user"]
-    username = get_username(user_id)
-
-    db = DatabaseManager(DB_NAME)
-    existing_user = db.fetchone(
-        "SELECT user_id FROM participants WHERE user_id = ?", (user_id,)
-    )
+    username = get_username_from_id(user_id)
+    existing_user = get_participant(DB_NAME, user_id)
 
     if existing_user:
         say(
@@ -79,11 +89,7 @@ def add_participant(message, say):
             channel=dm_channel,
         )
     else:
-        db.execute(
-            "INSERT INTO participants (user_id, username) VALUES (?, ?)",
-            (user_id, f"{username}"),
-        )
-
+        add_participant_to_db(DB_NAME, user_id, username)
         say(
             text=f"""<@{user_id}> a été ajouté à la liste des participants""",
             channel=dm_channel,
@@ -97,14 +103,9 @@ def remove_participant(message, say):
 
     dm_channel = message["channel"]
     user_id = message["user"]
-
-    db = DatabaseManager(DB_NAME)
-    existing_user = db.fetchone(
-        "SELECT user_id FROM participants WHERE user_id = ?", (user_id,)
-    )
-
+    existing_user = get_participant(DB_NAME, user_id)
     if existing_user:
-        db.execute("DELETE FROM participants WHERE user_id = ?", (user_id,))
+        remove_participant_from_db(DB_NAME, user_id)
         say(
             text=f"""<@{user_id}> a été retiré de la liste des participants""",
             channel=dm_channel,
@@ -124,12 +125,8 @@ def random_dj(message, say):
     dm_channel = message["channel"]
     user_id = message["user"]
 
-    db = DatabaseManager(DB_NAME)
-
-    all_participants = db.fetchall("SELECT user_id, username FROM participants")
-    recent_djs = db.fetchall(
-        "SELECT DISTINCT user_id FROM songs ORDER BY id DESC LIMIT 5"
-    )
+    all_participants = get_all_participants(DB_NAME)
+    recent_djs = get_recent_djs(DB_NAME)
 
     if len(recent_djs) < 5:
         available_djs = all_participants
@@ -145,9 +142,7 @@ def random_dj(message, say):
 
     random_dj = random.choice(available_djs)
 
-    # Remove the current DJ from the table then add the new one
-    db.execute("DELETE FROM currentdj")
-    db.execute("INSERT INTO currentdj (user_id) VALUES (?)", (random_dj[0],))
+    set_current_dj(DB_NAME, random_dj[0])
 
     # Send a message to the channel announcing the DJ for the next week
     say(
@@ -170,8 +165,7 @@ def show_current_dj(message, say):
     dm_channel = message["channel"]
     user_id = message["user"]
 
-    db = DatabaseManager(DB_NAME)
-    current_dj = db.fetchone("SELECT user_id FROM currentdj ORDER BY id DESC LIMIT 1")
+    current_dj = get_current_dj(DB_NAME)
 
     if not current_dj:
         say(
@@ -199,20 +193,14 @@ def save_song_link(message, say):
         )
         return
 
-    db = DatabaseManager(DB_NAME)
-
-    # Check if the user is the current DJ
-    current_dj = db.fetchone("SELECT user_id FROM currentdj ORDER BY id DESC LIMIT 1")
+    current_dj = get_current_dj(DB_NAME)
     if message["user"] != current_dj[0]:
         warning = f"\nAu fait,  <@{message['user']}>, tu n'es pas le DJ de la semaine. Normalement, c'est à <@{current_dj[0]}> de choisir le morceau de la semaine."
     else:
         warning = ""
 
     try:
-        db.execute(
-            "INSERT INTO songs (user_id, link) VALUES (?, ?)",
-            (message["user"], song_link),
-        )
+        save_song(DB_NAME, message["user"], song_link)
         say(
             text=f"""hey <@{message["user"]}>, ton morceau a été enregistré:\n{song_link}"""
             + warning,
@@ -234,8 +222,7 @@ def show_song(message, say):
     dm_channel = message["channel"]
     user_id = message["user"]
 
-    db = DatabaseManager(DB_NAME)
-    last_song = db.fetchone("SELECT link, user_id FROM songs ORDER BY id DESC LIMIT 1")
+    last_song = get_last_song(DB_NAME)
 
     if not last_song:
         say(
@@ -258,10 +245,7 @@ def show_last_songs(message, say):
     dm_channel = message["channel"]
     user_id = message["user"]
 
-    db = DatabaseManager(DB_NAME)
-    all_songs = db.fetchall(
-        "SELECT link, user_id FROM songs ORDER BY id DESC",
-    )
+    all_songs = get_all_songs(DB_NAME)
 
     # Filter out duplicates
     seen_links = set()
@@ -284,7 +268,7 @@ def show_last_songs(message, say):
         [f"{i+1}. {song[0]}, <@{song[1]}>" for i, song in enumerate(last_songs)]
     )
     say(
-        text=f"hey <@{user_id}>, vois les 5 derniers morceaux choisi:\n{songs_text}",
+        text=f"hey <@{user_id}>, voiçi les 5 derniers morceaux choisi:\n{songs_text}",
         channel=dm_channel,
     )
 
@@ -297,9 +281,8 @@ def show_participants(message, say):
     dm_channel = message["channel"]
     user_id = message["user"]
 
-    db = DatabaseManager(DB_NAME)
-    participants = db.fetchall("SELECT username FROM participants")
-    count = db.fetchone("SELECT COUNT(*) FROM participants")[0]
+    participants = get_participants_usernames(DB_NAME)
+    count = get_all_participants_count(DB_NAME)
 
     if not participants:
         say(
@@ -316,6 +299,53 @@ def show_participants(message, say):
         text=f"""hey <@{user_id}>, voici la liste des {count} participants:\n{participants_list}""",
         channel=dm_channel,
     )
+
+
+@app.message(re.compile(r"^forceadd/(\w+)$"))
+def force_add_participant(message, say):
+    if is_not_direct_message(message):
+        return
+
+    dm_channel = message["channel"]
+    user_id = message["text"].replace("forceadd/", "")
+    username = get_username_from_id(user_id)
+
+    existing_user = get_participant(DB_NAME, user_id)
+
+    if existing_user:
+        say(
+            text=f"""<@{user_id}> est déjà dans la liste des participants""",
+            channel=dm_channel,
+        )
+    else:
+        add_participant_to_db(DB_NAME, user_id, username)
+        say(
+            text=f"""<@{user_id}> a bien été ajouté à la liste des participants""",
+            channel=dm_channel,
+        )
+
+
+@app.message(re.compile(r"^forceremove/(\w+)$"))
+def force_remove_participant(message, say):
+    if is_not_direct_message(message):
+        return
+
+    dm_channel = message["channel"]
+    user_id = message["text"].replace("forceremove/", "")
+
+    existing_user = get_participant(DB_NAME, user_id)
+
+    if existing_user:
+        remove_participant_from_db(DB_NAME, user_id)
+        say(
+            text=f"""<@{user_id}> a bien été retiré de la liste des participants""",
+            channel=dm_channel,
+        )
+    else:
+        say(
+            text=f"""<@{user_id}> n'est déjà pas dans la liste des participants""",
+            channel=dm_channel,
+        )
 
 
 # @app.message(re.compile(r"^usernameof/(\w+)$"))
