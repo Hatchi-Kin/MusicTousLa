@@ -1,26 +1,9 @@
 import logging
 import os
 import re
-import sqlite3
 import random
 
-from bot.models import create_tables, insert_first_song
-from bot.utils import (
-    is_not_direct_message,
-    get_participant,
-    add_participant_to_db,
-    remove_participant_from_db,
-    get_all_participants,
-    get_recent_djs,
-    set_current_dj,
-    get_current_dj,
-    save_song,
-    get_last_song,
-    get_all_songs,
-    get_participants_usernames,
-    get_all_participants_count,
-)
-
+from bot.models import DatabaseManager
 from dotenv import load_dotenv
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
@@ -33,17 +16,21 @@ SLACK_BOT_TOKEN = os.environ["SLACK_BOT_TOKEN"]
 
 DB_NAME = "db/music_tous_la.db"
 
-def get_username_from_id(user_id):
+app = App(token=SLACK_BOT_TOKEN, name="MusicTousLa")
+logger = logging.getLogger(__name__)
+db = DatabaseManager(DB_NAME)
+
+
+def is_not_direct_message(message):
+    return message["channel_type"] != "im"
+
+
+def get_username_directly_from_slack(user_id):
     response = app.client.users_info(user=user_id)
     if response["ok"]:
         return response["user"]["name"]
     else:
         return None
-
-app = App(token=SLACK_BOT_TOKEN, name="MusicTousLa")
-logger = logging.getLogger(__name__)
-create_tables(DB_NAME)
-insert_first_song(DB_NAME)
 
 
 @app.message(re.compile(r"^help$"))
@@ -63,7 +50,7 @@ def show_help(message, say):
     - `isdj`: permet de voir qui est le DJ de la semaine\n
     - `nextsong/<song_link>`: permet au DJ de la semaine d'enregistrer l'URL du morceau choisit (ex, un lien youtube)\n
     - `song`: permet de voir le morceau choisi par le DJ de la semaine\n
-    - `last`: permet de voir les 3 derniers morceaux choisis par les précedents DJs\n
+    - `last`: permet de voir les 5 derniers morceaux choisis par les précedents DJs\n
     - `participants`: permet de voir la liste des participants\n
     - `forceadd/<user_id>`: permet d'ajouter un participant à la liste des participants\n
     - `forceremove/<user_id>`: permet de retirer un participant de la liste des participants\n
@@ -80,16 +67,16 @@ def add_participant(message, say):
 
     dm_channel = message["channel"]
     user_id = message["user"]
-    username = get_username_from_id(user_id)
-    existing_user = get_participant(DB_NAME, user_id)
+    username = get_username_directly_from_slack(user_id)
+    existing_user = db.get_participant_username_from_id(user_id)
 
     if existing_user:
         say(
-            text=f"""<@{user_id}> is already a participant""",
+            text=f"""<@{user_id}> est déjà dans la liste des participants""",
             channel=dm_channel,
         )
     else:
-        add_participant_to_db(DB_NAME, user_id, username)
+        db.add_participant_to_db(user_id, username)
         say(
             text=f"""<@{user_id}> a été ajouté à la liste des participants""",
             channel=dm_channel,
@@ -103,9 +90,10 @@ def remove_participant(message, say):
 
     dm_channel = message["channel"]
     user_id = message["user"]
-    existing_user = get_participant(DB_NAME, user_id)
+    existing_user = db.get_participant_username_from_id(user_id)
+
     if existing_user:
-        remove_participant_from_db(DB_NAME, user_id)
+        db.remove_participant_from_db(user_id)
         say(
             text=f"""<@{user_id}> a été retiré de la liste des participants""",
             channel=dm_channel,
@@ -124,9 +112,8 @@ def random_dj(message, say):
 
     dm_channel = message["channel"]
     user_id = message["user"]
-
-    all_participants = get_all_participants(DB_NAME)
-    recent_djs = get_recent_djs(DB_NAME)
+    all_participants = db.get_all_participants()
+    recent_djs = db.get_recent_djs()
 
     if len(recent_djs) < 5:
         available_djs = all_participants
@@ -141,8 +128,7 @@ def random_dj(message, say):
         return
 
     random_dj = random.choice(available_djs)
-
-    set_current_dj(DB_NAME, random_dj[0])
+    db.set_current_dj(random_dj[0])
 
     # Send a message to the channel announcing the DJ for the next week
     say(
@@ -164,8 +150,7 @@ def show_current_dj(message, say):
 
     dm_channel = message["channel"]
     user_id = message["user"]
-
-    current_dj = get_current_dj(DB_NAME)
+    current_dj = db.get_current_dj()
 
     if not current_dj:
         say(
@@ -180,12 +165,13 @@ def show_current_dj(message, say):
     )
 
 
-@app.message(re.compile(r"^nextsong/"))
+app.message(re.compile(r"^nextsong/"))
 def save_song_link(message, say):
     if is_not_direct_message(message):
         return
 
     song_link = message["text"].replace("nextsong/", "").strip()
+
     if song_link == "":
         say(
             text=f"""hey <@{message["user"]}>, tu n'as pas envoyé de lien de morceau. La commande est: `nextsong/<song_link>`""",
@@ -193,20 +179,21 @@ def save_song_link(message, say):
         )
         return
 
-    current_dj = get_current_dj(DB_NAME)
+    current_dj = db.get_current_dj()
+
     if message["user"] != current_dj[0]:
         warning = f"\nAu fait,  <@{message['user']}>, tu n'es pas le DJ de la semaine. Normalement, c'est à <@{current_dj[0]}> de choisir le morceau de la semaine."
     else:
         warning = ""
 
     try:
-        save_song(DB_NAME, message["user"], song_link)
+        db.save_song(message["user"], song_link)
         say(
             text=f"""hey <@{message["user"]}>, ton morceau a été enregistré:\n{song_link}"""
             + warning,
             channel=message["channel"],
         )
-    except sqlite3.Error as e:
+    except Exception as e:
         logger.error(f"Failed to save song link: {e}")
         say(
             text=f"""hey <@{message["user"]}>, il y a eu une erreur en enregistrant ton morceau. Réessaye plus tard.""",
@@ -221,8 +208,7 @@ def show_song(message, say):
 
     dm_channel = message["channel"]
     user_id = message["user"]
-
-    last_song = get_last_song(DB_NAME)
+    last_song = db.get_last_song()
 
     if not last_song:
         say(
@@ -244,8 +230,7 @@ def show_last_songs(message, say):
 
     dm_channel = message["channel"]
     user_id = message["user"]
-
-    all_songs = get_all_songs(DB_NAME)
+    all_songs = db.get_all_songs()
 
     # Filter out duplicates
     seen_links = set()
@@ -280,9 +265,8 @@ def show_participants(message, say):
 
     dm_channel = message["channel"]
     user_id = message["user"]
-
-    participants = get_participants_usernames(DB_NAME)
-    count = get_all_participants_count(DB_NAME)
+    participants = db.get_every_participants_usernames()
+    count = db.get_all_participants_count()
 
     if not participants:
         say(
@@ -308,9 +292,8 @@ def force_add_participant(message, say):
 
     dm_channel = message["channel"]
     user_id = message["text"].replace("forceadd/", "")
-    username = get_username_from_id(user_id)
-
-    existing_user = get_participant(DB_NAME, user_id)
+    username = get_username_directly_from_slack(user_id)
+    existing_user = db.get_participant_username_from_id(user_id)
 
     if existing_user:
         say(
@@ -318,7 +301,7 @@ def force_add_participant(message, say):
             channel=dm_channel,
         )
     else:
-        add_participant_to_db(DB_NAME, user_id, username)
+        db.add_participant_to_db(user_id, username)
         say(
             text=f"""<@{user_id}> a bien été ajouté à la liste des participants""",
             channel=dm_channel,
@@ -332,11 +315,10 @@ def force_remove_participant(message, say):
 
     dm_channel = message["channel"]
     user_id = message["text"].replace("forceremove/", "")
-
-    existing_user = get_participant(DB_NAME, user_id)
+    existing_user = db.get_participant_username_from_id(user_id)
 
     if existing_user:
-        remove_participant_from_db(DB_NAME, user_id)
+        db.remove_participant_from_db(user_id)
         say(
             text=f"""<@{user_id}> a bien été retiré de la liste des participants""",
             channel=dm_channel,
@@ -348,22 +330,6 @@ def force_remove_participant(message, say):
         )
 
 
-# @app.message(re.compile(r"^usernameof/(\w+)$"))
-# def get_username_of_user(message, say):
-#     if is_not_direct_message(message):
-#         return
-#     user_id = message["text"].replace("usernameof/", "")
-#     username = get_username(user_id)
-#     say(
-#         text=f"""L'username de {user_id} est <@{username}>""",
-#         channel=message["channel"],
-#     )
-
-
-def main():
+if __name__ == "__main__":
     handler = SocketModeHandler(app, SLACK_APP_TOKEN)
     handler.start()
-
-
-if __name__ == "__main__":
-    main()
