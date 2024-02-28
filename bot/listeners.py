@@ -39,7 +39,7 @@ def add_participant(message, say):
 
     dm_channel = message["channel"]
     user_id = message["user"]
-    username = get_username_directly_from_slack(user_id)
+    username = get_username_directly_from_slack(app, user_id)
     existing_user = db.get_participant_username_from_id(user_id)
 
     if existing_user:
@@ -263,7 +263,7 @@ def force_add_participant(message, say):
 
     dm_channel = message["channel"]
     user_id = message["text"].replace("forceadd/", "")
-    username = get_username_directly_from_slack(user_id)
+    username = get_username_directly_from_slack(app, user_id)
     existing_user = db.get_participant_username_from_id(user_id)
 
     if existing_user:
