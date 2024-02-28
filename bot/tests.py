@@ -50,6 +50,7 @@ class TestDatabaseManager(unittest.TestCase):
         result = self.db.get_last_song()
         self.assertEqual(result[0], song_link2)
 
+
     def test_insert_first_song(self):
         insert_first_song(self.db_path)
         result = self.db.get_last_song()

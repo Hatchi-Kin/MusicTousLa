@@ -142,7 +142,7 @@ def save_song_link(message, say):
     if is_not_direct_message(message):
         return
 
-    song_link = message["text"].replace("nextsong/", "")
+    song_link = message["text"].replace("nextsong/", "").strip()
     if song_link == "":
         say(
             text=f"""hey <@{message["user"]}>, tu n'as pas envoyé de lien de morceau. La commande est: `nextsong/<song_link>`""",
@@ -300,8 +300,9 @@ def force_remove_participant(message, say):
             channel=dm_channel,
         )
 
-
+        
 @app.event("message")
 def handle_message_events(body, logger):
     event = body.get("event", {})
     subtype = event.get("subtype")
+
