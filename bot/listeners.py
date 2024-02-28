@@ -1,4 +1,3 @@
-
 import re
 import random
 
@@ -144,7 +143,6 @@ def save_song_link(message, say):
         return
 
     song_link = message["text"].replace("nextsong/", "").strip()
-
     if song_link == "":
         say(
             text=f"""hey <@{message["user"]}>, tu n'as pas envoyé de lien de morceau. La commande est: `nextsong/<song_link>`""",
@@ -153,7 +151,6 @@ def save_song_link(message, say):
         return
 
     current_dj = db.get_current_dj()
-
     if message["user"] != current_dj[0]:
         warning = f"\nAu fait,  <@{message['user']}>, tu n'es pas le DJ de la semaine. Normalement, c'est à <@{current_dj[0]}> de choisir le morceau de la semaine."
     else:
@@ -166,6 +163,7 @@ def save_song_link(message, say):
             + warning,
             channel=message["channel"],
         )
+
     except Exception as e:
         logger.error(f"Failed to save song link: {e}")
         say(

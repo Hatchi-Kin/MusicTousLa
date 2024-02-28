@@ -19,4 +19,4 @@ logger = logging.getLogger(__name__)
 db = DatabaseManager(DB_NAME)
 handler = SocketModeHandler(app, SLACK_APP_TOKEN)
 
-from . import listeners  
+from . import listeners
