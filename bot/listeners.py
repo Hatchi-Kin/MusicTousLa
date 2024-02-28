@@ -2,7 +2,7 @@ import re
 import random
 
 from bot.utils import is_not_direct_message, get_username_directly_from_slack
-from . import app, db, logger
+from bot.config import app, db, logger
 
 
 @app.message(re.compile(r"^help$"))
@@ -132,7 +132,7 @@ def show_current_dj(message, say):
         return
 
     say(
-        text=f"hey <@{user_id}>, le DJ de cette semaine est <@{current_dj[0]}>",
+        text=f"hey <@{user_id}>, le DJ de cette semaine est <@{current_dj}>",
         channel=dm_channel,
     )
 

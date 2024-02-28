@@ -1,4 +1,4 @@
-from bot import handler
+from bot.config import handler
 
 
 if __name__ == "__main__":
