@@ -16,22 +16,14 @@ def create_tables(self):
                 )
                 """
             )
-            
+
             c.execute(
                 """
                 CREATE TABLE IF NOT EXISTS participants(
                     id INTEGER PRIMARY KEY,
                     user_id TEXT NOT NULL,
-                    username TEXT NOT NULL
-                )
-                """
-            )
-
-            c.execute(
-                """
-                CREATE TABLE IF NOT EXISTS currentdj(
-                    id INTEGER PRIMARY KEY,
-                    user_id TEXT NOT NULL
+                    username TEXT NOT NULL,
+                    is_dj BOOLEAN DEFAULT 0
                 )
                 """
             )
@@ -104,11 +96,16 @@ class DatabaseManager:
         )
 
     def set_current_dj(self, user_id):
-        self.execute("DELETE FROM currentdj")
-        self.execute("INSERT INTO currentdj (user_id) VALUES (?)", (user_id,))
+        self.execute("UPDATE participants SET is_dj = 0")
+        self.execute("UPDATE participants SET is_dj = 1 WHERE user_id = ?", (user_id,))
+        return user_id
 
     def get_current_dj(self):
-        return self.fetchone("SELECT user_id FROM currentdj ORDER BY id DESC LIMIT 1")
+        result = self.fetchone("SELECT user_id FROM participants WHERE is_dj = 1")
+        if result:
+            return result[0]
+        else:
+            return None
 
     def save_song(self, user_id, song_link):
         self.execute(
