@@ -44,6 +44,12 @@ class TestDatabaseManager(unittest.TestCase):
         result = self.db.get_last_song()
         self.assertEqual(result[0], song_link)
         self.assertEqual(result[1], user_id)
+        user_id2 = "test_user2"
+        song_link2 = "https://www.youtube.com/watch?v=test2"
+        self.db.save_song(user_id2, song_link2)
+        result = self.db.get_last_song()
+        self.assertEqual(result[0], song_link2)
+
 
     def test_insert_first_song(self):
         insert_first_song(self.db_path)
